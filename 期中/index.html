@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能車牌辨識系統 - Premium LPR System</title>
+    <!-- 載入 Google Fonts: Orbitron (科技風) 與 Outfit (現代扁平) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <!-- 載入 Tesseract.js v5 -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- 頂部導航列 / 狀態 -->
+        <header class="app-header">
+            <div class="logo-area">
+                <div class="logo-icon">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 6H20M4 12H20M4 18H12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        <circle cx="18" cy="18" r="2" fill="currentColor" />
+                    </svg>
+                </div>
+                <h1>ANTIGRAVITY <span class="accent-text">車牌辨識系統</span></h1>
+            </div>
+            
+            <div class="status-bar">
+                <div class="status-item" id="ocr-status">
+                    <span class="status-indicator warning"></span>
+                    <span class="status-text">初始化辨識引擎中...</span>
+                </div>
+                <div class="status-item" id="camera-status">
+                    <span class="status-indicator"></span>
+                    <span class="status-text">相機未啟動</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主要工作區：儀表板版面配置 -->
+        <main class="dashboard-grid">
+            
+            <!-- 左側控制面板：輸入來源切換 -->
+            <section class="panel left-panel">
+                <div class="panel-header">
+                    <h2><span class="step-num">01</span> 選擇辨識來源</h2>
+                </div>
+                
+                <!-- 分頁按鈕 -->
+                <div class="tab-buttons">
+                    <button class="tab-btn active" data-tab="webcam-tab">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4zM14 16H6V8h8v8z"/></svg>
+                        視訊掃描
+                    </button>
+                    <button class="tab-btn" data-tab="upload-tab">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+                        圖片上傳
+                    </button>
+                    <button class="tab-btn" data-tab="mock-tab">
+                        <svg class="icon" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+                        測試生成
+                    </button>
+                </div>
+
+                <!-- 分頁內容 -->
+                <div class="tab-content-container">
+                    
+                    <!-- 視訊掃描分頁 -->
+                    <div class="tab-content active" id="webcam-tab">
+                        <div class="select-camera-wrapper">
+                            <label for="camera-select">選擇相機：</label>
+                            <select id="camera-select" class="custom-select">
+                                <option value="">讀取相機清單中...</option>
+                            </select>
+                        </div>
+                        <div class="camera-actions">
+                            <button id="btn-start-camera" class="btn primary-btn btn-glow">開啟相機</button>
+                            <button id="btn-stop-camera" class="btn secondary-btn" disabled>關閉相機</button>
+                        </div>
+                        <div class="camera-hint">
+                            <p>請對準車牌，相機畫面會顯示在右側裁剪區。您可以拖曳紅框對準車牌進行即時辨識。</p>
+                        </div>
+                    </div>
+
+                    <!-- 圖片上傳分頁 -->
+                    <div class="tab-content" id="upload-tab">
+                        <div class="upload-zone" id="drop-zone">
+                            <input type="file" id="file-input" accept="image/*" style="display: none;">
+                            <svg class="upload-icon" viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+                            <p class="upload-title">拖曳圖片至此處，或點擊上傳</p>
+                            <p class="upload-subtitle">支援 JPG, PNG, WEBP 格式</p>
+                        </div>
+                        <div class="file-info" id="file-info-container" style="display: none;">
+                            <span id="file-name-text">filename.jpg</span>
+                            <button id="btn-remove-file" class="btn-icon">×</button>
+                        </div>
+                    </div>
+
+                    <!-- 測試生成分頁 -->
+                    <div class="tab-content" id="mock-tab">
+                        <div class="form-group">
+                            <label for="mock-plate-text">自訂車牌文字：</label>
+                            <input type="text" id="mock-plate-text" class="custom-input" value="ABC-8888" placeholder="例如: ABC-1234">
+                        </div>
+                        <div class="form-group">
+                            <label for="mock-plate-type">車牌類型：</label>
+                            <select id="mock-plate-type" class="custom-select">
+                                <option value="car-white">自用客車 (白底黑字)</option>
+                                <option value="car-green">電動客車 (綠底白字/綠邊)</option>
+                                <option value="moto-yellow">黃牌重機 (黃底黑字)</option>
+                                <option value="moto-red">紅牌重機 (紅底白字)</option>
+                                <option value="taxi-yellow">營業計程車 (白底紅字/紅邊)</option>
+                            </select>
+                        </div>
+                        <button id="btn-generate-mock" class="btn success-btn w-full btn-glow">生成測試車牌</button>
+                        <div class="camera-hint">
+                            <p>點擊生成後，系統將會在中間產生一張虛擬台灣車牌，您可以直接使用它進行辨識測試！</p>
+                        </div>
+                    </div>
+                    
+                </div>
+            </section>
+
+            <!-- 中間面板：影像預處理與裁剪區 -->
+            <section class="panel middle-panel">
+                <div class="panel-header">
+                    <h2><span class="step-num">02</span> 影像框選與預處理</h2>
+                </div>
+
+                <!-- 裁切主畫面 -->
+                <div class="cropper-outer-container">
+                    <div class="cropper-inner-container" id="cropper-wrapper">
+                        <!-- 當沒有載入內容時顯示 -->
+                        <div class="empty-state" id="cropper-empty">
+                            <svg class="empty-icon" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V5h14v14zm-5.04-6.71l-2.75 3.54-1.96-2.36L6.5 17h11l-3.54-4.71z"/></svg>
+                            <p>請先上傳圖片、開啟相機或生成測試車牌</p>
+                        </div>
+                        
+                        <!-- 視訊或圖片的渲染對象 -->
+                        <video id="video-feed" autoplay playsinline muted style="display: none;"></video>
+                        <img id="source-image" alt="辨識來源" style="display: none;">
+                        
+                        <!-- 拖曳裁切框 -->
+                        <div class="crop-overlay" id="crop-overlay" style="display: none;">
+                            <div class="crop-box" id="crop-box">
+                                <div class="crop-line line-t"></div>
+                                <div class="crop-line line-r"></div>
+                                <div class="crop-line line-b"></div>
+                                <div class="crop-line line-l"></div>
+                                <div class="crop-handle handle-nw"></div>
+                                <div class="crop-handle handle-ne"></div>
+                                <div class="crop-handle handle-se"></div>
+                                <div class="crop-handle handle-sw"></div>
+                                <div class="scanner-laser"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 預處理調整控制項 -->
+                <div class="preprocess-controls">
+                    <div class="control-header">
+                        <h3>影像二值化預處理 (OCR 輔助)</h3>
+                        <label class="switch">
+                            <input type="checkbox" id="toggle-preprocess" checked>
+                            <span class="slider round"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="preprocess-options" style="display: flex; gap: 1.25rem; font-size: 0.85rem; margin-bottom: 0.5rem; border-bottom: 1px solid var(--color-border); padding-bottom: 0.5rem;">
+                        <label style="display: flex; align-items: center; gap: 0.35rem; cursor: pointer; color: var(--color-text-normal);">
+                            <input type="checkbox" id="chk-adaptive" checked> 自適應閥值 (強烈推薦)
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 0.35rem; cursor: pointer; color: var(--color-text-normal);">
+                            <input type="checkbox" id="chk-invert"> 反轉黑白 (適用深底白字車牌)
+                        </label>
+                    </div>
+
+                    <div class="sliders-grid">
+                        <div class="slider-group">
+                            <div class="slider-label">
+                                <span>亮度 (Brightness)</span>
+                                <span id="val-brightness">0</span>
+                            </div>
+                            <input type="range" id="slider-brightness" min="-100" max="100" value="0" class="custom-slider">
+                        </div>
+
+                        <div class="slider-group">
+                            <div class="slider-label">
+                                <span>對比度 (Contrast)</span>
+                                <span id="val-contrast">0</span>
+                            </div>
+                            <input type="range" id="slider-contrast" min="-100" max="100" value="0" class="custom-slider">
+                        </div>
+
+                        <div class="slider-group">
+                            <div class="slider-label">
+                                <span>二值化閥值 (Threshold)</span>
+                                <span id="val-threshold">125</span>
+                            </div>
+                            <input type="range" id="slider-threshold" min="0" max="255" value="125" class="custom-slider">
+                        </div>
+                    </div>
+
+                    <!-- 預處理後的即時預覽 Canvas -->
+                    <div class="preprocessed-preview-wrapper">
+                        <div class="preview-item">
+                            <span>裁剪影像</span>
+                            <canvas id="canvas-cropped" width="200" height="60"></canvas>
+                        </div>
+                        <div class="preview-item">
+                            <span>預處理後 (OCR 所見)</span>
+                            <canvas id="canvas-preprocessed" width="200" height="60"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-btn-wrapper">
+                    <button id="btn-recognize" class="btn primary-btn btn-large w-full btn-glow" disabled>
+                        <span id="btn-text">立即辨識車牌</span>
+                        <div class="spinner" id="btn-spinner" style="display: none;"></div>
+                    </button>
+                </div>
+            </section>
+
+            <!-- 右側面板：辨識結果與歷史紀錄 -->
+            <section class="panel right-panel">
+                <div class="panel-header">
+                    <h2><span class="step-num">03</span> 辨識結果與紀錄</h2>
+                </div>
+
+                <!-- 辨識結果卡片 -->
+                <div class="result-card">
+                    <h3>偵測結果</h3>
+                    
+                    <!-- 車牌擬真視覺效果 -->
+                    <div class="plate-visualizer" id="plate-plate">
+                        <div class="plate-inner" id="plate-visual-box">
+                            <span class="plate-text" id="result-plate-display">------</span>
+                            <span class="plate-tag" id="plate-tag-display">TAIWAN</span>
+                        </div>
+                    </div>
+
+                    <!-- 詳細辨識資訊 -->
+                    <div class="result-details">
+                        <div class="detail-row">
+                            <span class="detail-label">信心度：</span>
+                            <div class="progress-bar-container">
+                                <div class="progress-bar" id="result-confidence-bar" style="width: 0%"></div>
+                            </div>
+                            <span class="detail-val" id="result-confidence-text">0%</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">手動修正：</span>
+                            <input type="text" id="result-plate-edit" class="custom-input" placeholder="辨識文字" disabled>
+                        </div>
+                    </div>
+
+                    <div class="result-actions">
+                        <button id="btn-tts" class="btn secondary-btn" title="語音朗讀" disabled>
+                            <svg class="icon" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
+                            語音讀牌
+                        </button>
+                        <button id="btn-save-log" class="btn success-btn" disabled>確認儲存</button>
+                    </div>
+                </div>
+
+                <!-- 歷史紀錄 -->
+                <div class="history-section">
+                    <div class="history-header">
+                        <h3>歷史辨識紀錄</h3>
+                        <div class="history-actions">
+                            <button id="btn-export-csv" class="btn text-btn">匯出 CSV</button>
+                            <button id="btn-clear-history" class="btn text-btn warning-text">清除全部</button>
+                        </div>
+                    </div>
+
+                    <div class="history-list-wrapper">
+                        <table class="history-table" id="history-table">
+                            <thead>
+                                <tr>
+                                    <th>車牌截圖</th>
+                                    <th>車牌號碼</th>
+                                    <th>信心度</th>
+                                    <th>時間</th>
+                                    <th>操作</th>
+                                </tr>
+                            </thead>
+                            <tbody id="history-tbody">
+                                <!-- 紀錄插入點 -->
+                                <tr class="empty-history-row">
+                                    <td colspan="5" style="text-align: center; color: var(--color-text-muted); padding: 2rem 0;">無辨識紀錄</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+            
+        </main>
+    </div>
+
+    <!-- 載入核心 logic -->
+    <script src="app.js"></script>
+</body>
+</html>
